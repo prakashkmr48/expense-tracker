@@ -137,6 +137,53 @@ def delete_transaction(id):
     db.session.commit()
     return jsonify({'message': 'Transaction deleted successfully'})
 
+# ----------------------- CATEGORIES -------------------------
+
+@app.route('/categories', methods=['GET'])
+@jwt_required()
+def get_categories():
+    categories = Category.query.all()
+    return jsonify([{'id': c.id, 'name': c.name} for c in categories])
+
+@app.route('/categories', methods=['POST'])
+@jwt_required()
+def add_category():
+    data = request.json
+    new_category = Category(name=data['name'])
+    db.session.add(new_category)
+    db.session.commit()
+    return jsonify({'message': 'Category added successfully'}), 201
+
+# ----------------------- REPORTS -------------------------
+
+@app.route('/reports/monthly', methods=['GET'])
+@jwt_required()
+def get_monthly_report():
+    month = request.args.get('month')
+    if not month:
+        return jsonify({'error': 'Month parameter is required'}), 400
+
+    try:
+        year, month = map(int, month.split('-'))
+        start_date = datetime(year, month, 1).date()
+        end_date = datetime(year, month + 1, 1).date() if month < 12 else datetime(year + 1, 1, 1).date()
+    except ValueError:
+        return jsonify({'error': 'Invalid month format. Use YYYY-MM'}), 400
+
+    user_id = get_jwt_identity()
+    transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date >= start_date,
+        Transaction.date < end_date
+    ).all()
+
+    report = {
+        'income': sum(t.amount for t in transactions if t.type == 'income'),
+        'expense': sum(t.amount for t in transactions if t.type == 'expense')
+    }
+
+    return jsonify(report)
+
 # ----------------------- DATABASE INITIALIZATION -------------------------
 
 @app.before_request
