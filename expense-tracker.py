@@ -14,6 +14,14 @@ app.config['JWT_SECRET_KEY'] = 'your-secret-key'  # Change this in production
 # Enable CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+@app.after_request
+def after_request(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization, Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 # Initialize Extensions
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -21,7 +29,7 @@ jwt = JWTManager(app)
 
 ### swagger specific ###
 SWAGGER_URL = '/swagger'
-API_URL = '/static/swagger.json'  # Changed to relative path
+API_URL = 'https://expense-tracker-9w88.onrender.com/static/swagger.json'  # Use HTTPS
 swaggerui_blueprint = get_swaggerui_blueprint(
     SWAGGER_URL,
     API_URL,
@@ -51,15 +59,6 @@ class Transaction(db.Model):
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
-
-# ----------------------- CORS HANDLING -------------------------
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return response
 
 # ----------------------- AUTHENTICATION -------------------------
 
@@ -140,47 +139,6 @@ def delete_transaction(id):
     db.session.delete(transaction)
     db.session.commit()
     return jsonify({'message': 'Transaction deleted successfully'})
-
-# ----------------------- CATEGORY MANAGEMENT -------------------------
-
-@app.route('/categories', methods=['GET'])
-@jwt_required()
-def get_categories():
-    categories = Category.query.all()
-    return jsonify([c.name for c in categories])
-
-@app.route('/categories', methods=['POST'])
-@jwt_required()
-def add_category():
-    data = request.json
-    if Category.query.filter_by(name=data['name']).first():
-        return jsonify({'error': 'Category already exists'}), 400
-    new_category = Category(name=data['name'])
-    db.session.add(new_category)
-    db.session.commit()
-    return jsonify({'message': 'Category added successfully'}), 201
-
-# ----------------------- REPORT GENERATION -------------------------
-
-@app.route('/reports/monthly', methods=['GET'])
-@jwt_required()
-def get_monthly_report():
-    user_id = get_jwt_identity()
-    month = request.args.get('month')  # Format: YYYY-MM
-    if not month:
-        return jsonify({'error': 'Month parameter is required'}), 400
-    
-    start_date = datetime.strptime(month + "-01", '%Y-%m-%d')
-    transactions = Transaction.query.filter(Transaction.user_id == user_id, Transaction.date >= start_date).all()
-
-    income = sum(t.amount for t in transactions if t.type == 'income')
-    expense = sum(t.amount for t in transactions if t.type == 'expense')
-    
-    return jsonify({
-        "total_income": income,
-        "total_expense": expense,
-        "balance": income - expense
-    })
 
 # ----------------------- DATABASE INITIALIZATION -------------------------
 
