@@ -8,10 +8,11 @@ from flask_swagger_ui import get_swaggerui_blueprint
 
 # Initialize Flask App
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
 app.config['JWT_SECRET_KEY'] = 'your-secret-key'  # Change this in production
+
+# Enable CORS
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Initialize Extensions
 db = SQLAlchemy(app)
@@ -65,6 +66,10 @@ def add_cors_headers(response):
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({'message': 'Welcome to the Expense Tracker API'})
+
+@app.route('/auth/register', methods=['OPTIONS'])
+def preflight_register():
+    return '', 204
 
 @app.route('/auth/register', methods=['POST'])
 def register():
