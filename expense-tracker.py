@@ -64,12 +64,17 @@ def preflight_register():
 
 @app.route('/auth/register', methods=['POST'])
 def register():
-    data = request.json
-    hashed_pw = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    new_user = User(name=data['name'], email=data['email'], password=hashed_pw)
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'User registered successfully'}), 201
+    try:
+        data = request.json
+        hashed_pw = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+        new_user = User(name=data['name'], email=data['email'], password=hashed_pw)
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({'message': 'User registered successfully'}), 201
+    except Exception as e:
+        print(f"Error during registration: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
 
 @app.route('/auth/login', methods=['POST'])
 def login():
