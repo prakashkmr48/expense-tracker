@@ -177,12 +177,49 @@ def get_monthly_report():
         Transaction.date < end_date
     ).all()
 
+    income = sum(t.amount for t in transactions if t.type == 'income')
+    expense = sum(t.amount for t in transactions if t.type == 'expense')
+    balance = income - expense
+
     report = {
-        'income': sum(t.amount for t in transactions if t.type == 'income'),
-        'expense': sum(t.amount for t in transactions if t.type == 'expense')
+        'income': income,
+        'expense': expense,
+        'balance': balance
     }
 
     return jsonify(report)
+
+@app.route('/reports/monthly/csv', methods=['GET'])
+@jwt_required()
+def get_monthly_report_csv():
+    month = request.args.get('month')
+    if not month:
+        return jsonify({'error': 'Month parameter is required'}), 400
+
+    try:
+        year, month = map(int, month.split('-'))
+        start_date = datetime(year, month, 1).date()
+        end_date = datetime(year, month + 1, 1).date() if month < 12 else datetime(year + 1, 1, 1).date()
+    except ValueError:
+        return jsonify({'error': 'Invalid month format. Use YYYY-MM'}), 400
+
+    user_id = get_jwt_identity()
+    transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date >= start_date,
+        Transaction.date < end_date
+    ).all()
+
+    # Prepare CSV data
+    csv_data = "Date,Type,Category,Amount\n"
+    for t in transactions:
+        csv_data += f"{t.date},{t.type},{t.category},{t.amount}\n"
+
+    # Create a response with CSV data
+    response = Flask.make_response(csv_data)
+    response.headers["Content-Disposition"] = f"attachment; filename=monthly_report_{month}.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
 
 # ----------------------- DATABASE INITIALIZATION -------------------------
 
