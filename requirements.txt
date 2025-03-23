@@ -5,3 +5,4 @@ Flask-Bcrypt
 flask-swagger-ui
 gunicorn
 werkzeug
+flask_cors
